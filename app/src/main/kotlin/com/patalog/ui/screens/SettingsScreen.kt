@@ -595,5 +595,5 @@ private fun SectionHeader(
             color = MaterialTheme.colorScheme.primary
         )
     }
-    Divider(modifier = Modifier.padding(top = 8.dp))
+    HorizontalDivider(modifier = Modifier.padding(top = 8.dp))
 }

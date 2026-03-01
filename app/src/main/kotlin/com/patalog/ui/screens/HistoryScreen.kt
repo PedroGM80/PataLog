@@ -169,12 +169,7 @@ fun HistoryScreen(
         
         // Panel derecho: Detalle de consulta
         if (selectedConsultation != null) {
-            Box(
-                modifier = Modifier
-                    .width(1.dp)
-                    .fillMaxHeight()
-                    .background(MaterialTheme.colorScheme.outline.copy(alpha = 0.2f))
-            )
+            VerticalDivider()
             ConsultationDetailPanel(
                 consultation = selectedConsultation!!,
                 animalName = getAnimalName(selectedConsultation!!.animalId),
