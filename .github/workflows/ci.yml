@@ -7,7 +7,7 @@ on:
     branches: [ master, develop ]
 
 jobs:
-  backend:
+  backend-lint:
     runs-on: ubuntu-latest
 
     strategy:
@@ -15,107 +15,122 @@ jobs:
         python-version: ['3.11']
 
     steps:
-    - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-    - name: Set up Python ${{ matrix.python-version }}
-      uses: actions/setup-python@v4
-      with:
-        python-version: ${{ matrix.python-version }}
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
 
-    - name: Cache pip packages
-      uses: actions/cache@v3
-      with:
-        path: ~/.cache/pip
-        key: ${{ runner.os }}-pip-${{ hashFiles('backend/requirements.txt') }}
-        restore-keys: |
-          ${{ runner.os }}-pip-
+      - name: Cache pip packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('backend/requirements.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-
 
-    - name: Install backend dependencies
-      run: |
-        python -m pip install --upgrade pip
-        pip install -r backend/requirements.txt
-        pip install flake8 pylint black isort bandit mypy
+      - name: Install backend dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r backend/requirements.txt
+          pip install flake8 pylint black isort bandit mypy
 
-    - name: Check code formatting with black
-      run: black backend/src --check --diff
-      continue-on-error: true
+      - name: Check code formatting with black
+        run: black backend/src --check --diff
 
-    - name: Check import ordering with isort
-      run: isort backend/src --check-only --diff
-      continue-on-error: true
+      - name: Check import ordering with isort
+        run: isort backend/src --check-only --diff
 
-    - name: Lint backend with flake8
-      run: |
-        echo "=== Flake8 - Code Style ==="
-        flake8 backend/src --count --select=E9,F63,F7,F82 --show-source --statistics
-        flake8 backend/src --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
-      continue-on-error: true
+      - name: Lint backend with flake8
+        run: |
+          echo "=== Flake8 - Code Style ==="
+          flake8 backend/src --count --select=E9,F63,F7,F82 --show-source --statistics
+          flake8 backend/src --count --max-complexity=10 --max-line-length=127 --statistics
 
-    - name: Lint backend with pylint
-      run: |
-        echo "=== Pylint - Code Quality ==="
-        pylint backend/src --exit-zero --max-line-length=127
-      continue-on-error: true
+      - name: Lint backend with pylint
+        run: |
+          echo "=== Pylint - Code Quality ==="
+          pylint backend/src --max-line-length=127
 
-    - name: Security check with bandit
-      run: |
-        echo "=== Bandit - Security Analysis ==="
-        bandit -r backend/src --exit-zero
-      continue-on-error: true
+      - name: Security check with bandit
+        run: |
+          echo "=== Bandit - Security Analysis ==="
+          bandit -r backend/src
 
-    - name: Type checking with mypy
-      run: |
-        echo "=== MyPy - Type Checking ==="
-        mypy backend/src --ignore-missing-imports --exit-code=0
-      continue-on-error: true
+      - name: Type checking with mypy
+        run: |
+          echo "=== MyPy - Type Checking ==="
+          mypy backend/src --ignore-missing-imports
 
-    - name: Verify backend imports
-      run: |
-        python -c "import sys; sys.path.insert(0, 'backend'); from src.main import *; print('✓ Backend imports OK')"
-      continue-on-error: true
+  backend-test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ['3.11']
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Cache pip packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('backend/requirements.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r backend/requirements.txt
+          pip install pytest pytest-cov
+
+      - name: Run tests
+        run: |
+          pytest backend/
 
   frontend:
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-    - name: Set up JDK 17
-      uses: actions/setup-java@v3
-      with:
-        java-version: '17'
-        distribution: 'temurin'
-        cache: gradle
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
 
-    - name: Make gradlew executable
-      run: chmod +x app/gradlew
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
 
-    - name: Run Kotlin linter (ktlint)
-      run: cd app && ./gradlew ktlintCheck --stacktrace
-      continue-on-error: true
+      - name: Run Kotlin linter (ktlint)
+        run: cd app && gradle ktlintCheck --stacktrace
 
-    - name: Run code analysis (Detekt)
-      run: cd app && ./gradlew detekt --stacktrace
-      continue-on-error: true
+      - name: Run code analysis (Detekt)
+        run: cd app && gradle detekt --stacktrace
 
-    - name: Build frontend with Gradle
-      run: cd app && ./gradlew build --stacktrace
-      continue-on-error: true
+      - name: Build frontend with Gradle
+        run: cd app && gradle build --stacktrace
 
-    - name: Run frontend tests with coverage
-      run: cd app && ./gradlew test jacocoTestReport --stacktrace
-      continue-on-error: true
+      - name: Run frontend tests with coverage
+        run: cd app && gradle test jacocoTestReport --stacktrace
 
-    - name: Upload build reports
-      if: always()
-      uses: actions/upload-artifact@v3
-      with:
-        name: gradle-reports
-        path: app/build/reports
+      - name: Upload build reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: gradle-reports
+          path: app/build/reports
 
-    - name: Upload coverage reports
-      if: always()
-      uses: actions/upload-artifact@v3
-      with:
-        name: coverage-reports
-        path: app/build/reports/jacoco
+      - name: Upload coverage reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-reports
+          path: app/build/reports/jacoco
