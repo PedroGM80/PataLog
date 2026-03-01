@@ -23,17 +23,16 @@ jobs:
         with:
           java-version: '17'
           distribution: 'temurin'
-          cache: gradle
 
-      - name: Make gradlew executable
-        run: chmod +x app/gradlew
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
 
       - name: Build with Gradle
-        run: cd app && ./gradlew build --stacktrace
+        run: cd app && gradle build --stacktrace
         continue-on-error: true
 
       - name: Run tests
-        run: cd app && ./gradlew test --stacktrace
+        run: cd app && gradle test --stacktrace
         continue-on-error: true
 
       - name: Upload build reports
