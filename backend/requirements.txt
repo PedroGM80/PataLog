@@ -1,0 +1,11 @@
+# Transcripcion
+openai-whisper>=20231117
+
+# LLM
+requests>=2.31.0
+
+# PDF
+reportlab>=4.0.0
+
+# Utilidades
+python-dotenv>=1.0.0
