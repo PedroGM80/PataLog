@@ -1,11 +1,15 @@
 package com.patalog.ui
 
+import androidx.compose.foundation.focusable
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.input.key.*
 import androidx.compose.ui.unit.dp
 import com.patalog.Repositories
 import com.patalog.backend.BackendClient
@@ -31,9 +35,56 @@ fun App(appState: AppState, backendClient: BackendClient, repositories: Reposito
     var isDarkMode by remember { mutableStateOf(repositories.clinicConfig.get().darkMode) }
     val colorScheme = if (isDarkMode) DarkColorScheme else LightColorScheme
     
+    // Focus para capturar atajos de teclado
+    val focusRequester = remember { FocusRequester() }
+    
+    LaunchedEffect(Unit) {
+        focusRequester.requestFocus()
+    }
+    
     MaterialTheme(colorScheme = colorScheme) {
         Surface(
-            modifier = Modifier.fillMaxSize(),
+            modifier = Modifier
+                .fillMaxSize()
+                .focusRequester(focusRequester)
+                .focusable()
+                .onPreviewKeyEvent { keyEvent ->
+                    if (keyEvent.type == KeyEventType.KeyDown && keyEvent.isCtrlPressed) {
+                        when (keyEvent.key) {
+                            Key.One, Key.NumPad1 -> {
+                                if (currentScreen != Screen.ONBOARDING) {
+                                    currentScreen = Screen.CONSULTATION
+                                    true
+                                } else false
+                            }
+                            Key.Two, Key.NumPad2 -> {
+                                if (currentScreen != Screen.ONBOARDING) {
+                                    currentScreen = Screen.ANIMALS
+                                    true
+                                } else false
+                            }
+                            Key.Three, Key.NumPad3 -> {
+                                if (currentScreen != Screen.ONBOARDING) {
+                                    currentScreen = Screen.OWNERS
+                                    true
+                                } else false
+                            }
+                            Key.Four, Key.NumPad4 -> {
+                                if (currentScreen != Screen.ONBOARDING) {
+                                    currentScreen = Screen.HISTORY
+                                    true
+                                } else false
+                            }
+                            Key.Comma -> {
+                                if (currentScreen != Screen.ONBOARDING) {
+                                    currentScreen = Screen.SETTINGS
+                                    true
+                                } else false
+                            }
+                            else -> false
+                        }
+                    } else false
+                },
             color = MaterialTheme.colorScheme.background
         ) {
             // Onboarding sin barra lateral

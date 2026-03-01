@@ -1,5 +1,6 @@
 package com.patalog.ui.screens
 
+import androidx.compose.foundation.focusable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -9,6 +10,11 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.input.key.*
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import com.patalog.audio.AudioRecorder
 import com.patalog.backend.BackendClient
@@ -66,10 +72,180 @@ fun ConsultationScreen(
         }
     }
     
+    // Funciones de accion para atajos
+    val canRecord = selectedAnimal != null && microphoneError == null
+    val isRecording = recordingState == AudioRecorder.RecordingState.RECORDING
+    
+    fun startRecording() {
+        val validation = appState.validateForRecording()
+        if (validation != null) {
+            showValidationError = validation.message
+        } else {
+            showValidationError = null
+            microphoneError = null
+            if (!audioRecorder.start(scope)) {
+                microphoneError = "Error al iniciar grabacion. Verifica el microfono."
+            }
+        }
+    }
+    
+    fun stopRecording() {
+        scope.launch {
+            val file = audioRecorder.stop()
+            if (file != null && file.exists()) {
+                audioFile = file
+                appState.updateTranscriptionState(UiState.Loading("Transcribiendo audio..."))
+                try {
+                    val transcript = backendClient.transcribe(
+                        file.absolutePath,
+                        clinicConfig.transcriptionLanguage
+                    )
+                    appState.updateTranscriptionState(UiState.Success(transcript))
+                } catch (e: Exception) {
+                    appState.updateTranscriptionState(
+                        UiState.Error(e.message ?: "Error de transcripcion")
+                    )
+                }
+            } else {
+                appState.updateTranscriptionState(
+                    UiState.Error("No se pudo guardar la grabacion")
+                )
+            }
+        }
+    }
+    
+    fun generateReport() {
+        val transcript = transcriptionState.getOrNull()
+        if (!transcript.isNullOrBlank()) {
+            scope.launch {
+                appState.updateReportState(UiState.Loading("Generando informe..."))
+                try {
+                    val report = backendClient.generateReport(transcript)
+                    appState.updateReportState(UiState.Success(report))
+                } catch (e: Exception) {
+                    appState.updateReportState(UiState.Error(e.message ?: "Error generando informe"))
+                }
+            }
+        }
+    }
+    
+    fun saveConsultation() {
+        val validation = appState.validateForSave()
+        if (validation != null) {
+            showValidationError = validation.message
+        } else {
+            showValidationError = null
+            val animal = selectedAnimal!!
+            val transcript = transcriptionState.getOrNull() ?: ""
+            val report = reportState.getOrNull() ?: ""
+            val consultation = Consultation(
+                animalId = animal.id,
+                date = LocalDateTime.now(),
+                transcript = transcript,
+                report = report,
+                notes = notes
+            )
+            val id = consultationRepository.insert(consultation)
+            if (id > 0) {
+                showSaveSuccess = true
+                scope.launch {
+                    kotlinx.coroutines.delay(2000)
+                    showSaveSuccess = false
+                }
+            }
+        }
+    }
+    
+    fun exportPdf() {
+        val validation = appState.validateForSave()
+        if (validation != null) {
+            showValidationError = validation.message
+            return
+        }
+        showValidationError = null
+        scope.launch {
+            appState.updateExportState(UiState.Loading("Generando PDF..."))
+            try {
+                val animal = selectedAnimal!!
+                val report = reportState.getOrNull() ?: ""
+                val timestamp = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss"))
+                val outputDir = if (clinicConfig.pdfOutputFolder.isNotBlank()) {
+                    clinicConfig.pdfOutputFolder
+                } else {
+                    System.getProperty("user.home")
+                }
+                val outputPath = "$outputDir/PataLog_${animal.name}_$timestamp.pdf"
+                val pdfPath = backendClient.exportPdf(
+                    outputPath = outputPath,
+                    animalName = animal.name,
+                    animalSpecies = animal.species,
+                    animalBreed = animal.breed,
+                    report = report,
+                    notes = notes,
+                    consultationDate = LocalDateTime.now().format(DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm")),
+                    clinicName = clinicConfig.name,
+                    vetLicense = clinicConfig.vetLicense
+                )
+                appState.updateExportState(UiState.Success(pdfPath))
+            } catch (e: Exception) {
+                appState.updateExportState(UiState.Error(e.message ?: "Error exportando PDF"))
+            }
+        }
+    }
+    
+    fun clearAll() {
+        audioRecorder.cancel()
+        appState.updateTranscriptionState(UiState.Idle)
+        appState.updateReportState(UiState.Idle)
+        appState.updateExportState(UiState.Idle)
+        notes = ""
+        audioFile = null
+        showValidationError = null
+        showSaveSuccess = false
+    }
+    
     Column(
         modifier = Modifier
             .fillMaxSize()
             .padding(24.dp)
+            .onPreviewKeyEvent { keyEvent ->
+                if (keyEvent.type == KeyEventType.KeyDown) {
+                    when {
+                        // Ctrl+R o F5: Grabar/Detener
+                        (keyEvent.isCtrlPressed && keyEvent.key == Key.R) || keyEvent.key == Key.F5 -> {
+                            if (isRecording) stopRecording() else if (canRecord) startRecording()
+                            true
+                        }
+                        // Ctrl+G: Generar informe
+                        keyEvent.isCtrlPressed && keyEvent.key == Key.G -> {
+                            if (transcriptionState.isSuccess) generateReport()
+                            true
+                        }
+                        // Ctrl+S: Guardar
+                        keyEvent.isCtrlPressed && keyEvent.key == Key.S -> {
+                            if (appState.canSaveReport()) saveConsultation()
+                            true
+                        }
+                        // Ctrl+E: Exportar PDF
+                        keyEvent.isCtrlPressed && keyEvent.key == Key.E -> {
+                            if (appState.canSaveReport() && !exportState.isLoading) exportPdf()
+                            true
+                        }
+                        // Ctrl+L: Limpiar
+                        keyEvent.isCtrlPressed && keyEvent.key == Key.L -> {
+                            clearAll()
+                            true
+                        }
+                        // Escape: Cancelar grabacion
+                        keyEvent.key == Key.Escape && isRecording -> {
+                            audioRecorder.cancel()
+                            true
+                        }
+                        else -> false
+                    }
+                } else false
+            }
+            .focusable()
     ) {
         // --- Seccion: Animal seleccionado ---
         AnimalSelectionCard(
@@ -84,52 +260,13 @@ fun ConsultationScreen(
         RecordingCard(
             recordingState = recordingState,
             recordingDuration = recordingDuration,
-            canRecord = selectedAnimal != null && microphoneError == null,
+            canRecord = canRecord,
             transcriptionState = transcriptionState,
             microphoneError = microphoneError,
             formatDuration = { audioRecorder.formatDuration(it) },
-            onStartRecording = {
-                val validation = appState.validateForRecording()
-                if (validation != null) {
-                    showValidationError = validation.message
-                } else {
-                    showValidationError = null
-                    microphoneError = null
-                    
-                    if (!audioRecorder.start(scope)) {
-                        microphoneError = "Error al iniciar grabacion. Verifica el microfono."
-                    }
-                }
-            },
-            onStopRecording = {
-                scope.launch {
-                    val file = audioRecorder.stop()
-                    if (file != null && file.exists()) {
-                        audioFile = file
-                        
-                        // Transcribir automaticamente
-                        appState.updateTranscriptionState(UiState.Loading("Transcribiendo audio..."))
-                        try {
-                            val transcript = backendClient.transcribe(
-                                file.absolutePath,
-                                clinicConfig.transcriptionLanguage
-                            )
-                            appState.updateTranscriptionState(UiState.Success(transcript))
-                        } catch (e: Exception) {
-                            appState.updateTranscriptionState(
-                                UiState.Error(e.message ?: "Error de transcripcion")
-                            )
-                        }
-                    } else {
-                        appState.updateTranscriptionState(
-                            UiState.Error("No se pudo guardar la grabacion")
-                        )
-                    }
-                }
-            },
-            onCancelRecording = {
-                audioRecorder.cancel()
-            }
+            onStartRecording = { startRecording() },
+            onStopRecording = { stopRecording() },
+            onCancelRecording = { audioRecorder.cancel() }
         )
         
         Spacer(Modifier.height(16.dp))
@@ -142,17 +279,7 @@ fun ConsultationScreen(
             // Columna izquierda: Transcripcion
             TranscriptionCard(
                 state = transcriptionState,
-                onGenerateReport = { transcript ->
-                    scope.launch {
-                        appState.updateReportState(UiState.Loading("Generando informe..."))
-                        try {
-                            val report = backendClient.generateReport(transcript)
-                            appState.updateReportState(UiState.Success(report))
-                        } catch (e: Exception) {
-                            appState.updateReportState(UiState.Error(e.message ?: "Error generando informe"))
-                        }
-                    }
-                },
+                onGenerateReport = { generateReport() },
                 modifier = Modifier.weight(1f)
             )
             
@@ -186,84 +313,9 @@ fun ConsultationScreen(
             exportState = exportState,
             validationError = showValidationError,
             showSaveSuccess = showSaveSuccess,
-            onSave = {
-                val validation = appState.validateForSave()
-                if (validation != null) {
-                    showValidationError = validation.message
-                } else {
-                    showValidationError = null
-                    
-                    val animal = selectedAnimal!!
-                    val transcript = transcriptionState.getOrNull() ?: ""
-                    val report = reportState.getOrNull() ?: ""
-                    
-                    val consultation = Consultation(
-                        animalId = animal.id,
-                        date = LocalDateTime.now(),
-                        transcript = transcript,
-                        report = report,
-                        notes = notes
-                    )
-                    
-                    val id = consultationRepository.insert(consultation)
-                    if (id > 0) {
-                        showSaveSuccess = true
-                        scope.launch {
-                            kotlinx.coroutines.delay(2000)
-                            showSaveSuccess = false
-                        }
-                    }
-                }
-            },
-            onExportPdf = {
-                val validation = appState.validateForSave()
-                if (validation != null) {
-                    showValidationError = validation.message
-                    return@ActionsRow
-                }
-                showValidationError = null
-                
-                scope.launch {
-                    appState.updateExportState(UiState.Loading("Generando PDF..."))
-                    try {
-                        val animal = selectedAnimal!!
-                        val report = reportState.getOrNull() ?: ""
-                        val timestamp = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss"))
-                        
-                        val outputDir = if (clinicConfig.pdfOutputFolder.isNotBlank()) {
-                            clinicConfig.pdfOutputFolder
-                        } else {
-                            System.getProperty("user.home")
-                        }
-                        val outputPath = "$outputDir/PataLog_${animal.name}_$timestamp.pdf"
-                        
-                        val pdfPath = backendClient.exportPdf(
-                            outputPath = outputPath,
-                            animalName = animal.name,
-                            animalSpecies = animal.species,
-                            animalBreed = animal.breed,
-                            report = report,
-                            notes = notes,
-                            consultationDate = LocalDateTime.now().format(DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm")),
-                            clinicName = clinicConfig.name,
-                            vetLicense = clinicConfig.vetLicense
-                        )
-                        appState.updateExportState(UiState.Success(pdfPath))
-                    } catch (e: Exception) {
-                        appState.updateExportState(UiState.Error(e.message ?: "Error exportando PDF"))
-                    }
-                }
-            },
-            onClear = {
-                audioRecorder.cancel()
-                appState.updateTranscriptionState(UiState.Idle)
-                appState.updateReportState(UiState.Idle)
-                appState.updateExportState(UiState.Idle)
-                notes = ""
-                audioFile = null
-                showValidationError = null
-                showSaveSuccess = false
-            }
+            onSave = { saveConsultation() },
+            onExportPdf = { exportPdf() },
+            onClear = { clearAll() }
         )
     }
 }
@@ -447,7 +499,7 @@ private fun RecordingCard(
 @Composable
 private fun TranscriptionCard(
     state: UiState<String>,
-    onGenerateReport: (String) -> Unit,
+    onGenerateReport: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     Card(modifier = modifier.fillMaxHeight()) {
@@ -466,7 +518,7 @@ private fun TranscriptionCard(
                 
                 if (state.isSuccess) {
                     Button(
-                        onClick = { state.getOrNull()?.let { onGenerateReport(it) } },
+                        onClick = onGenerateReport,
                         enabled = !state.getOrNull().isNullOrBlank()
                     ) {
                         Icon(Icons.Default.AutoAwesome, contentDescription = null)
@@ -553,6 +605,7 @@ private fun ReportCard(
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun ActionsRow(
     canSave: Boolean,
@@ -624,28 +677,46 @@ private fun ActionsRow(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(12.dp, Alignment.End)
         ) {
-            OutlinedButton(onClick = onClear) {
-                Icon(Icons.Default.Clear, contentDescription = null)
-                Spacer(Modifier.width(8.dp))
-                Text("Limpiar")
+            TooltipBox(
+                positionProvider = TooltipDefaults.rememberPlainTooltipPositionProvider(),
+                tooltip = { PlainTooltip { Text("Limpiar (Ctrl+L)") } },
+                state = rememberTooltipState()
+            ) {
+                OutlinedButton(onClick = onClear) {
+                    Icon(Icons.Default.Clear, contentDescription = "Limpiar formulario")
+                    Spacer(Modifier.width(8.dp))
+                    Text("Limpiar")
+                }
             }
             
-            OutlinedButton(
-                onClick = onExportPdf,
-                enabled = canSave && !exportState.isLoading
+            TooltipBox(
+                positionProvider = TooltipDefaults.rememberPlainTooltipPositionProvider(),
+                tooltip = { PlainTooltip { Text("Exportar PDF (Ctrl+E)") } },
+                state = rememberTooltipState()
             ) {
-                Icon(Icons.Default.PictureAsPdf, contentDescription = null)
-                Spacer(Modifier.width(8.dp))
-                Text("Exportar PDF")
+                OutlinedButton(
+                    onClick = onExportPdf,
+                    enabled = canSave && !exportState.isLoading
+                ) {
+                    Icon(Icons.Default.PictureAsPdf, contentDescription = "Exportar a PDF")
+                    Spacer(Modifier.width(8.dp))
+                    Text("Exportar PDF")
+                }
             }
             
-            Button(
-                onClick = onSave,
-                enabled = canSave
+            TooltipBox(
+                positionProvider = TooltipDefaults.rememberPlainTooltipPositionProvider(),
+                tooltip = { PlainTooltip { Text("Guardar consulta (Ctrl+S)") } },
+                state = rememberTooltipState()
             ) {
-                Icon(Icons.Default.Save, contentDescription = null)
-                Spacer(Modifier.width(8.dp))
-                Text("Guardar consulta")
+                Button(
+                    onClick = onSave,
+                    enabled = canSave
+                ) {
+                    Icon(Icons.Default.Save, contentDescription = "Guardar consulta")
+                    Spacer(Modifier.width(8.dp))
+                    Text("Guardar consulta")
+                }
             }
         }
     }

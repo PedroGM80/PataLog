@@ -458,6 +458,61 @@ fun SettingsScreen(
         
         Spacer(Modifier.height(32.dp))
         
+        // --- Seccion: Atajos de teclado ---
+        SectionHeader(
+            icon = Icons.Default.Keyboard,
+            title = "Atajos de teclado"
+        )
+        
+        Spacer(Modifier.height(12.dp))
+        
+        Card(
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Column(modifier = Modifier.padding(16.dp)) {
+                Text(
+                    text = "Navegacion",
+                    style = MaterialTheme.typography.titleSmall,
+                    color = MaterialTheme.colorScheme.primary
+                )
+                Spacer(Modifier.height(4.dp))
+                KeyboardShortcutRow("Ctrl+1", "Consulta")
+                KeyboardShortcutRow("Ctrl+2", "Pacientes")
+                KeyboardShortcutRow("Ctrl+3", "Propietarios")
+                KeyboardShortcutRow("Ctrl+4", "Historial")
+                KeyboardShortcutRow("Ctrl+,", "Ajustes")
+                
+                Spacer(Modifier.height(12.dp))
+                
+                Text(
+                    text = "Consulta",
+                    style = MaterialTheme.typography.titleSmall,
+                    color = MaterialTheme.colorScheme.primary
+                )
+                Spacer(Modifier.height(4.dp))
+                KeyboardShortcutRow("Ctrl+R / F5", "Grabar / Detener")
+                KeyboardShortcutRow("Ctrl+G", "Generar informe")
+                KeyboardShortcutRow("Ctrl+S", "Guardar consulta")
+                KeyboardShortcutRow("Ctrl+E", "Exportar PDF")
+                KeyboardShortcutRow("Ctrl+L", "Limpiar")
+                KeyboardShortcutRow("Escape", "Cancelar grabacion")
+                
+                Spacer(Modifier.height(12.dp))
+                
+                Text(
+                    text = "Listas",
+                    style = MaterialTheme.typography.titleSmall,
+                    color = MaterialTheme.colorScheme.primary
+                )
+                Spacer(Modifier.height(4.dp))
+                KeyboardShortcutRow("Ctrl+N", "Nuevo elemento")
+                KeyboardShortcutRow("Ctrl+F", "Buscar")
+                KeyboardShortcutRow("Escape", "Cerrar dialogo")
+            }
+        }
+        
+        Spacer(Modifier.height(32.dp))
+        
         // --- Seccion: Acerca de ---
         SectionHeader(
             icon = Icons.Default.Info,
@@ -478,7 +533,7 @@ fun SettingsScreen(
                     style = MaterialTheme.typography.titleLarge
                 )
                 Text(
-                    text = "Version 0.4.0",
+                    text = "Version 0.5.0",
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -497,6 +552,28 @@ fun SettingsScreen(
         }
         
         Spacer(Modifier.height(24.dp))
+    }
+}
+
+@Composable
+private fun KeyboardShortcutRow(
+    shortcut: String,
+    description: String
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth().padding(vertical = 2.dp),
+        horizontalArrangement = Arrangement.SpaceBetween
+    ) {
+        Text(
+            text = shortcut,
+            style = MaterialTheme.typography.bodyMedium,
+            fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace
+        )
+        Text(
+            text = description,
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
     }
 }
 
