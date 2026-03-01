@@ -55,12 +55,13 @@ Aplicacion de escritorio para veterinarios que transcribe consultas por voz y ge
 
 ---
 
-## Sprint 5 - Instalador [PENDIENTE]
+## Sprint 5 - Instalador [COMPLETADO]
 | Tarea | Estado | Archivo(s) |
 |-------|--------|------------|
-| Empaquetar Kotlin con jpackage | Preparado | `build.gradle.kts` |
-| Empaquetar Python con PyInstaller | Pendiente | |
-| Instalador final | Pendiente | |
+| Empaquetar Kotlin con jpackage | HECHO | `build.gradle.kts` |
+| Empaquetar Python con PyInstaller | HECHO | `patalog-backend.spec` |
+| Scripts de build | HECHO | `build-windows.bat`, `build.sh` |
+| Instalador final | HECHO | Genera .msi/.dmg/.deb |
 
 ---
 
@@ -78,6 +79,16 @@ Aplicacion de escritorio para veterinarios que transcribe consultas por voz y ge
 ---
 
 ## Changelog
+
+### [0.5.0] - 2025-03-01
+
+#### Sprint 5 Completado - Instalador
+- **Sistema de build completo**:
+  - Configuracion jpackage para .msi/.dmg/.deb
+  - Spec file PyInstaller para backend
+  - Scripts de build automatizados (Windows/Linux/Mac)
+- **README profesional** con documentacion completa
+- **Licencia MIT**
 
 ### [0.4.0] - 2025-03-01
 
