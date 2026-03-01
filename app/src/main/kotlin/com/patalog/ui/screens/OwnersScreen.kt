@@ -1,6 +1,7 @@
 package com.patalog.ui.screens
 
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.focusable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -10,6 +11,9 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.input.key.*
 import androidx.compose.ui.unit.dp
 import com.patalog.data.OwnerRepository
 import com.patalog.domain.models.Owner
@@ -34,6 +38,9 @@ fun OwnersScreen(
     var ownerToEdit by remember { mutableStateOf<Owner?>(null) }
     var ownerToDelete by remember { mutableStateOf<Owner?>(null) }
     
+    // Focus para busqueda
+    val searchFocusRequester = remember { FocusRequester() }
+    
     // Funcion para recargar
     fun reload() {
         owners = if (searchQuery.isBlank()) {
@@ -54,7 +61,38 @@ fun OwnersScreen(
         }
     }
     
-    Column(modifier = Modifier.fillMaxSize().padding(24.dp)) {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(24.dp)
+            .onPreviewKeyEvent { keyEvent ->
+                if (keyEvent.type == KeyEventType.KeyDown) {
+                    when {
+                        // Ctrl+N: Nuevo propietario
+                        keyEvent.isCtrlPressed && keyEvent.key == Key.N -> {
+                            showAddDialog = true
+                            true
+                        }
+                        // Ctrl+F: Focus en busqueda
+                        keyEvent.isCtrlPressed && keyEvent.key == Key.F -> {
+                            searchFocusRequester.requestFocus()
+                            true
+                        }
+                        // Escape: Cerrar dialogos
+                        keyEvent.key == Key.Escape -> {
+                            when {
+                                showAddDialog -> { showAddDialog = false; true }
+                                ownerToEdit != null -> { ownerToEdit = null; true }
+                                ownerToDelete != null -> { ownerToDelete = null; true }
+                                else -> false
+                            }
+                        }
+                        else -> false
+                    }
+                } else false
+            }
+            .focusable()
+    ) {
         // Cabecera
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -79,16 +117,16 @@ fun OwnersScreen(
         OutlinedTextField(
             value = searchQuery,
             onValueChange = { searchQuery = it },
-            label = { Text("Buscar por nombre, telefono o email") },
-            leadingIcon = { Icon(Icons.Default.Search, null) },
+            label = { Text("Buscar por nombre, telefono o email (Ctrl+F)") },
+            leadingIcon = { Icon(Icons.Default.Search, contentDescription = "Buscar") },
             trailingIcon = {
                 if (searchQuery.isNotBlank()) {
                     IconButton(onClick = { searchQuery = "" }) {
-                        Icon(Icons.Default.Clear, "Limpiar")
+                        Icon(Icons.Default.Clear, "Limpiar busqueda")
                     }
                 }
             },
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier.fillMaxWidth().focusRequester(searchFocusRequester),
             singleLine = true
         )
         
@@ -292,6 +330,24 @@ private fun OwnerCard(
     }
 }
 
+/**
+ * Valida formato de email.
+ */
+private fun isValidEmail(email: String): Boolean {
+    if (email.isBlank()) return true // Email es opcional
+    val emailRegex = Regex("^[A-Za-z0-9+_.-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}$")
+    return emailRegex.matches(email)
+}
+
+/**
+ * Valida formato de telefono (solo digitos, espacios, +, -, parentesis).
+ */
+private fun isValidPhone(phone: String): Boolean {
+    if (phone.isBlank()) return true // Telefono es opcional
+    val phoneRegex = Regex("^[0-9+\\-()\\s]{6,20}$")
+    return phoneRegex.matches(phone)
+}
+
 @Composable
 private fun OwnerFormDialog(
     owner: Owner?,
@@ -303,6 +359,13 @@ private fun OwnerFormDialog(
     var email by remember { mutableStateOf(owner?.email ?: "") }
     
     var nameError by remember { mutableStateOf<String?>(null) }
+    var phoneError by remember { mutableStateOf<String?>(null) }
+    var emailError by remember { mutableStateOf<String?>(null) }
+    
+    // Limites de caracteres
+    val maxNameLength = 100
+    val maxPhoneLength = 20
+    val maxEmailLength = 100
     
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -312,30 +375,52 @@ private fun OwnerFormDialog(
                 OutlinedTextField(
                     value = name,
                     onValueChange = { 
-                        name = it
-                        nameError = null
+                        if (it.length <= maxNameLength) {
+                            name = it
+                            nameError = null
+                        }
                     },
                     label = { Text("Nombre *") },
                     isError = nameError != null,
-                    supportingText = nameError?.let { { Text(it) } },
+                    supportingText = {
+                        if (nameError != null) {
+                            Text(nameError!!)
+                        } else {
+                            Text("${name.length}/$maxNameLength")
+                        }
+                    },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth()
                 )
                 
                 OutlinedTextField(
                     value = phone,
-                    onValueChange = { phone = it },
+                    onValueChange = { 
+                        if (it.length <= maxPhoneLength) {
+                            phone = it
+                            phoneError = null
+                        }
+                    },
                     label = { Text("Telefono") },
-                    leadingIcon = { Icon(Icons.Default.Phone, null) },
+                    leadingIcon = { Icon(Icons.Default.Phone, contentDescription = "Telefono") },
+                    isError = phoneError != null,
+                    supportingText = phoneError?.let { { Text(it) } },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth()
                 )
                 
                 OutlinedTextField(
                     value = email,
-                    onValueChange = { email = it },
+                    onValueChange = { 
+                        if (it.length <= maxEmailLength) {
+                            email = it
+                            emailError = null
+                        }
+                    },
                     label = { Text("Email") },
-                    leadingIcon = { Icon(Icons.Default.Email, null) },
+                    leadingIcon = { Icon(Icons.Default.Email, contentDescription = "Email") },
+                    isError = emailError != null,
+                    supportingText = emailError?.let { { Text(it) } },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth()
                 )
@@ -344,9 +429,24 @@ private fun OwnerFormDialog(
         confirmButton = {
             Button(
                 onClick = {
+                    var hasErrors = false
+                    
                     if (name.isBlank()) {
                         nameError = "El nombre es obligatorio"
-                    } else {
+                        hasErrors = true
+                    }
+                    
+                    if (!isValidPhone(phone)) {
+                        phoneError = "Formato de telefono invalido"
+                        hasErrors = true
+                    }
+                    
+                    if (!isValidEmail(email)) {
+                        emailError = "Formato de email invalido"
+                        hasErrors = true
+                    }
+                    
+                    if (!hasErrors) {
                         onSave(
                             Owner(
                                 id = owner?.id ?: 0,

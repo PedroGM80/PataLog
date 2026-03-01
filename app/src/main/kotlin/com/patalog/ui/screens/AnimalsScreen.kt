@@ -1,6 +1,7 @@
 package com.patalog.ui.screens
 
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.focusable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -10,6 +11,9 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.input.key.*
 import androidx.compose.ui.unit.dp
 import com.patalog.data.AnimalRepository
 import com.patalog.data.OwnerRepository
@@ -39,6 +43,9 @@ fun AnimalsScreen(
     var animalToEdit by remember { mutableStateOf<Animal?>(null) }
     var animalToDelete by remember { mutableStateOf<Animal?>(null) }
     
+    // Focus para busqueda
+    val searchFocusRequester = remember { FocusRequester() }
+    
     // Funcion para recargar
     fun reload() {
         animals = if (searchQuery.isBlank()) {
@@ -59,7 +66,38 @@ fun AnimalsScreen(
         }
     }
     
-    Column(modifier = Modifier.fillMaxSize().padding(24.dp)) {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(24.dp)
+            .onPreviewKeyEvent { keyEvent ->
+                if (keyEvent.type == KeyEventType.KeyDown) {
+                    when {
+                        // Ctrl+N: Nuevo paciente
+                        keyEvent.isCtrlPressed && keyEvent.key == Key.N -> {
+                            showAddDialog = true
+                            true
+                        }
+                        // Ctrl+F: Focus en busqueda
+                        keyEvent.isCtrlPressed && keyEvent.key == Key.F -> {
+                            searchFocusRequester.requestFocus()
+                            true
+                        }
+                        // Escape: Cerrar dialogos
+                        keyEvent.key == Key.Escape -> {
+                            when {
+                                showAddDialog -> { showAddDialog = false; true }
+                                animalToEdit != null -> { animalToEdit = null; true }
+                                animalToDelete != null -> { animalToDelete = null; true }
+                                else -> false
+                            }
+                        }
+                        else -> false
+                    }
+                } else false
+            }
+            .focusable()
+    ) {
         // Cabecera
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -89,16 +127,16 @@ fun AnimalsScreen(
         OutlinedTextField(
             value = searchQuery,
             onValueChange = { searchQuery = it },
-            label = { Text("Buscar por nombre, especie o raza") },
-            leadingIcon = { Icon(Icons.Default.Search, null) },
+            label = { Text("Buscar por nombre, especie o raza (Ctrl+F)") },
+            leadingIcon = { Icon(Icons.Default.Search, contentDescription = "Buscar") },
             trailingIcon = {
                 if (searchQuery.isNotBlank()) {
                     IconButton(onClick = { searchQuery = "" }) {
-                        Icon(Icons.Default.Clear, "Limpiar")
+                        Icon(Icons.Default.Clear, "Limpiar busqueda")
                     }
                 }
             },
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier.fillMaxWidth().focusRequester(searchFocusRequester),
             singleLine = true
         )
         
@@ -318,6 +356,11 @@ private fun AnimalFormDialog(
     var nameError by remember { mutableStateOf<String?>(null) }
     var speciesError by remember { mutableStateOf<String?>(null) }
     
+    // Limites de caracteres
+    val maxNameLength = 50
+    val maxSpeciesLength = 30
+    val maxBreedLength = 50
+    
     val selectedOwner = owners.find { it.id == selectedOwnerId }
     
     AlertDialog(
@@ -328,12 +371,20 @@ private fun AnimalFormDialog(
                 OutlinedTextField(
                     value = name,
                     onValueChange = { 
-                        name = it
-                        nameError = null
+                        if (it.length <= maxNameLength) {
+                            name = it
+                            nameError = null
+                        }
                     },
                     label = { Text("Nombre *") },
                     isError = nameError != null,
-                    supportingText = nameError?.let { { Text(it) } },
+                    supportingText = {
+                        if (nameError != null) {
+                            Text(nameError!!)
+                        } else {
+                            Text("${name.length}/$maxNameLength")
+                        }
+                    },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth()
                 )
@@ -341,22 +392,35 @@ private fun AnimalFormDialog(
                 OutlinedTextField(
                     value = species,
                     onValueChange = { 
-                        species = it
-                        speciesError = null
+                        if (it.length <= maxSpeciesLength) {
+                            species = it
+                            speciesError = null
+                        }
                     },
                     label = { Text("Especie *") },
                     placeholder = { Text("Perro, Gato, Ave...") },
                     isError = speciesError != null,
-                    supportingText = speciesError?.let { { Text(it) } },
+                    supportingText = {
+                        if (speciesError != null) {
+                            Text(speciesError!!)
+                        } else {
+                            Text("${species.length}/$maxSpeciesLength")
+                        }
+                    },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth()
                 )
                 
                 OutlinedTextField(
                     value = breed,
-                    onValueChange = { breed = it },
+                    onValueChange = { 
+                        if (it.length <= maxBreedLength) {
+                            breed = it
+                        }
+                    },
                     label = { Text("Raza") },
                     placeholder = { Text("Opcional") },
+                    supportingText = { Text("${breed.length}/$maxBreedLength") },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth()
                 )
