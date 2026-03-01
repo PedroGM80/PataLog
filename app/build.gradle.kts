@@ -8,7 +8,7 @@ plugins {
 }
 
 group = "com.patalog"
-version = "0.5.0"
+version = "0.6.0"
 
 repositories {
     mavenCentral()
@@ -50,7 +50,7 @@ compose.desktop {
             )
             
             packageName = "PataLog"
-            packageVersion = "0.5.0"
+            packageVersion = "0.6.0"
             description = "Asistente de transcripcion para consultas veterinarias con IA local"
             copyright = "© 2025 TeckelSoft"
             vendor = "TeckelSoft"
