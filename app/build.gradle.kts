@@ -2,6 +2,9 @@ plugins {
     kotlin("jvm") version "1.9.21"
     kotlin("plugin.serialization") version "1.9.21"
     id("org.jetbrains.compose") version "1.5.11"
+    id("org.jlleitschuh.gradle.ktlint") version "11.6.1"
+    id("io.gitlab.arturbosch.detekt") version "1.23.4"
+    jacoco
 }
 
 group = "com.patalog"
@@ -81,17 +84,53 @@ compose.desktop {
 
 tasks.test {
     useJUnitPlatform()
+    finalizedBy("jacocoTestReport")
 }
 
 kotlin {
     jvmToolchain(17)
 }
 
+// Configuración de Detekt
+detekt {
+    toolVersion = "1.23.4"
+    config = files("${rootDir}/detekt.yml")
+    parallel = true
+    ignoreFailures = true
+
+    reports {
+        html.required.set(true)
+        xml.required.set(true)
+        sarif.required.set(true)
+    }
+}
+
+// Configuración de ktlint
+ktlint {
+    ignoreFailures.set(true)
+    disabledRules.set(setOf("no-wildcard-imports"))
+}
+
+// Configuración de JaCoCo
+jacoco {
+    toolVersion = "0.8.10"
+}
+
+tasks.jacocoTestReport {
+    dependsOn(tasks.test)
+
+    reports {
+        xml.required.set(true)
+        csv.required.set(true)
+        html.required.set(true)
+    }
+}
+
 // Tarea para empaquetar todo
 tasks.register("packageAll") {
     group = "distribution"
     description = "Empaqueta backend con PyInstaller y luego la app con jpackage"
-    
+
     doFirst {
         println("=== Empaquetando PataLog ===")
         println("1. Ejecuta primero: cd ../backend && python -m PyInstaller --onedir src/main.py -n patalog-backend")
