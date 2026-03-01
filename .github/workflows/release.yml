@@ -51,7 +51,7 @@ jobs:
       - name: Build frontend with Gradle
         run: |
           cd app
-          ./gradlew packageMsi --stacktrace
+          gradle packageMsi --stacktrace
 
       - name: Locate built installers
         run: |
@@ -121,7 +121,7 @@ jobs:
       - name: Build frontend with Gradle
         run: |
           cd app
-          ./gradlew packageDeb --stacktrace
+          gradle packageDeb --stacktrace
 
       - name: Locate built installers
         run: |
