@@ -21,7 +21,7 @@ dependencies {
     implementation(compose.desktop.currentOs)
     implementation(compose.material3)
     implementation(compose.materialIconsExtended)
-    
+
     // Coroutines
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.10.2")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-swing:1.10.2")
@@ -31,7 +31,7 @@ dependencies {
 
     // SQLite
     implementation("org.xerial:sqlite-jdbc:3.51.2.0")
-    
+
     // Testing
     testImplementation(kotlin("test"))
     testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.7.3")
@@ -56,13 +56,13 @@ compose.desktop {
                 )
             }
             targetFormats(*formats.toTypedArray())
-            
+
             packageName = "PataLog"
             packageVersion = "1.0.0"
             description = "Asistente de transcripcion para consultas veterinarias con IA local"
             copyright = "© 2025 TeckelSoft"
             vendor = "TeckelSoft"
-            
+
             windows {
                 menuGroup = "PataLog"
                 shortcut = true
@@ -71,19 +71,19 @@ compose.desktop {
                 upgradeUuid = "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
                 iconFile.set(project.file("src/main/resources/icon.ico"))
             }
-            
+
             macOS {
                 bundleID = "com.teckelsoft.patalog"
                 iconFile.set(project.file("src/main/resources/icon.icns"))
             }
-            
+
             linux {
                 packageName = "patalog"
                 debMaintainer = "info@teckelsoft.com"
                 menuGroup = "Office"
                 iconFile.set(project.file("src/main/resources/icon.png"))
             }
-            
+
             // Incluir el backend empaquetado
             appResourcesRootDir.set(project.layout.projectDirectory.dir("../dist"))
         }
@@ -102,21 +102,17 @@ kotlin {
 // Configuración de Detekt
 detekt {
     toolVersion = "1.23.8"
-    config = files("${rootDir}/detekt.yml")
+    config.setFrom(files("${rootDir}/detekt.yml"))
     parallel = true
     ignoreFailures = true
-
-    reports {
-        html.required.set(true)
-        xml.required.set(true)
-        sarif.required.set(true)
-    }
 }
 
 // Configuración de ktlint
 ktlint {
     ignoreFailures.set(true)
-    disabledRules.set(setOf("no-wildcard-imports"))
+    filter {
+        exclude("**/no-wildcard-imports**")
+    }
 }
 
 // Configuración de JaCoCo
