@@ -294,24 +294,24 @@ PataLog/
 
 **Comunicación**: JSON sobre stdin/stdout (robusto y multiplataforma)
 
-### Stack tecnológico actualizado (2025)
+### Stack tecnológico actualizado (2026)
 
-**Frontend**
+**Frontend** (Kotlin/Compose, 2026)
 - Kotlin 2.3.10 (K2 compiler)
 - Compose Desktop 1.9.3
 - Material Design 3
 - SQLite con JDBC 3.51.2.0
 
-**Backend**
+**Backend** (Python, 2026)
 - Python 3.13.12
 - OpenAI Whisper 20250625
 - Ollama (último)
 - ReportLab 4.4.10
 - python-dotenv 1.2.1
 
-**Build & Deploy**
+**Build & Deploy** (2026)
 - Gradle 9.3.0+
-- GitHub Actions (CI/CD)
+- GitHub Actions (CI/CD optimizado)
 - PyInstaller (empaquetado backend)
 - WiX Toolset (instaladores Windows)
 
