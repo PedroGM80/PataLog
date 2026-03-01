@@ -52,11 +52,11 @@ fun OnboardingScreen(
         while (true) {
             checkingOllama = true
             try {
-                val result = backendClient.checkOllama()
-                ollamaConnected = result.available
-                availableModels = result.models
-                if (selectedModel.isBlank() && result.models.isNotEmpty()) {
-                    selectedModel = result.models.first()
+                val status = backendClient.getStatus()
+                ollamaConnected = status.ollamaReady
+                availableModels = backendClient.listModels()
+                if (selectedModel.isBlank() && availableModels.isNotEmpty()) {
+                    selectedModel = availableModels.first()
                 }
             } catch (e: Exception) {
                 ollamaConnected = false

@@ -169,7 +169,7 @@ fun HistoryScreen(
         
         // Panel derecho: Detalle de consulta
         if (selectedConsultation != null) {
-            VerticalDivider()
+            Divider(modifier = Modifier.width(1.dp))
             ConsultationDetailPanel(
                 consultation = selectedConsultation!!,
                 animalName = getAnimalName(selectedConsultation!!.animalId),

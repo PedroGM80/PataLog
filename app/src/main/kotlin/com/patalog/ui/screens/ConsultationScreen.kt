@@ -677,46 +677,28 @@ private fun ActionsRow(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(12.dp, Alignment.End)
         ) {
-            TooltipBox(
-                positionProvider = TooltipDefaults.rememberPlainTooltipPositionProvider(),
-                tooltip = { PlainTooltip { Text("Limpiar (Ctrl+L)") } },
-                state = rememberTooltipState()
-            ) {
-                OutlinedButton(onClick = onClear) {
-                    Icon(Icons.Default.Clear, contentDescription = "Limpiar formulario")
-                    Spacer(Modifier.width(8.dp))
-                    Text("Limpiar")
-                }
+            OutlinedButton(onClick = onClear) {
+                Icon(Icons.Default.Clear, contentDescription = "Limpiar formulario")
+                Spacer(Modifier.width(8.dp))
+                Text("Limpiar (Ctrl+L)")
             }
-            
-            TooltipBox(
-                positionProvider = TooltipDefaults.rememberPlainTooltipPositionProvider(),
-                tooltip = { PlainTooltip { Text("Exportar PDF (Ctrl+E)") } },
-                state = rememberTooltipState()
+
+            OutlinedButton(
+                onClick = onExportPdf,
+                enabled = canSave && !exportState.isLoading
             ) {
-                OutlinedButton(
-                    onClick = onExportPdf,
-                    enabled = canSave && !exportState.isLoading
-                ) {
-                    Icon(Icons.Default.PictureAsPdf, contentDescription = "Exportar a PDF")
-                    Spacer(Modifier.width(8.dp))
-                    Text("Exportar PDF")
-                }
+                Icon(Icons.Default.PictureAsPdf, contentDescription = "Exportar a PDF")
+                Spacer(Modifier.width(8.dp))
+                Text("Exportar PDF (Ctrl+E)")
             }
-            
-            TooltipBox(
-                positionProvider = TooltipDefaults.rememberPlainTooltipPositionProvider(),
-                tooltip = { PlainTooltip { Text("Guardar consulta (Ctrl+S)") } },
-                state = rememberTooltipState()
+
+            Button(
+                onClick = onSave,
+                enabled = canSave
             ) {
-                Button(
-                    onClick = onSave,
-                    enabled = canSave
-                ) {
-                    Icon(Icons.Default.Save, contentDescription = "Guardar consulta")
-                    Spacer(Modifier.width(8.dp))
-                    Text("Guardar consulta")
-                }
+                Icon(Icons.Default.Save, contentDescription = "Guardar consulta")
+                Spacer(Modifier.width(8.dp))
+                Text("Guardar consulta (Ctrl+S)")
             }
         }
     }
