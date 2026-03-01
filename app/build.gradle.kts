@@ -1,6 +1,7 @@
 plugins {
     kotlin("jvm") version "2.3.10"
     kotlin("plugin.serialization") version "2.3.10"
+    kotlin("plugin.compose") version "2.3.10"
     id("org.jetbrains.compose") version "1.9.3"
     id("org.jlleitschuh.gradle.ktlint") version "13.1.0"
     id("io.gitlab.arturbosch.detekt") version "1.23.8"
@@ -110,9 +111,6 @@ detekt {
 // Configuración de ktlint
 ktlint {
     ignoreFailures.set(true)
-    filter {
-        exclude("**/no-wildcard-imports**")
-    }
 }
 
 // Configuración de JaCoCo
