@@ -1,0 +1,181 @@
+name: Build and Release
+
+on:
+  push:
+    branches: [ master ]
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+    name: Build Windows Installers
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up JDK 17
+      uses: actions/setup-java@v3
+      with:
+        java-version: '17'
+        distribution: 'temurin'
+        cache: gradle
+
+    - name: Set up Python 3.11
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+
+    - name: Install Python dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r backend/requirements.txt
+        pip install pyinstaller
+
+    - name: Build backend with PyInstaller
+      run: |
+        cd backend
+        python -m PyInstaller patalog-backend.spec
+        echo "Backend build completed"
+        dir dist/
+
+    - name: Prepare backend for frontend
+      run: |
+        if (Test-Path "backend/dist/patalog-backend") {
+          mkdir -Force dist/
+          Copy-Item -Recurse "backend/dist/patalog-backend" "dist/"
+          echo "Backend copied to dist/"
+        }
+
+    - name: Build frontend with Gradle
+      run: |
+        cd app
+        ./gradlew packageMsi --stacktrace
+
+    - name: Locate built installers
+      run: |
+        echo "=== Build artifacts ==="
+        Get-ChildItem -Recurse app/build/compose/binaries/main/msi -ErrorAction SilentlyContinue | Select-Object FullName
+        Get-ChildItem -Recurse app/build/compose/binaries/main/exe -ErrorAction SilentlyContinue | Select-Object FullName
+
+    - name: Upload MSI artifact
+      uses: actions/upload-artifact@v3
+      with:
+        name: PataLog-Windows-MSI
+        path: app/build/compose/binaries/main/msi/**/*.msi
+        if-no-files-found: warn
+
+    - name: Upload EXE artifact
+      uses: actions/upload-artifact@v3
+      with:
+        name: PataLog-Windows-EXE
+        path: app/build/compose/binaries/main/exe/**/*.exe
+        if-no-files-found: warn
+
+  build-linux:
+    runs-on: ubuntu-latest
+    name: Build Linux DEB Package
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up JDK 17
+      uses: actions/setup-java@v3
+      with:
+        java-version: '17'
+        distribution: 'temurin'
+        cache: gradle
+
+    - name: Set up Python 3.11
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+
+    - name: Install system dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y fakeroot
+
+    - name: Install Python dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r backend/requirements.txt
+        pip install pyinstaller
+
+    - name: Build backend with PyInstaller
+      run: |
+        cd backend
+        python -m PyInstaller patalog-backend.spec
+        echo "Backend build completed"
+        ls -la dist/
+
+    - name: Prepare backend for frontend
+      run: |
+        mkdir -p dist/
+        if [ -d "backend/dist/patalog-backend" ]; then
+          cp -r backend/dist/patalog-backend dist/
+          echo "Backend copied to dist/"
+        fi
+
+    - name: Build frontend with Gradle
+      run: |
+        cd app
+        ./gradlew packageDeb --stacktrace
+
+    - name: Locate built installers
+      run: |
+        echo "=== Build artifacts ==="
+        find app/build/compose/binaries/main -name "*.deb" -type f 2>/dev/null || echo "No DEB files found"
+
+    - name: Upload DEB artifact
+      uses: actions/upload-artifact@v3
+      with:
+        name: PataLog-Linux-DEB
+        path: app/build/compose/binaries/main/deb/**/*.deb
+        if-no-files-found: warn
+
+  create-release:
+    needs: [build-windows, build-linux]
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/v')
+    name: Create Release
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Download Windows MSI
+      uses: actions/download-artifact@v3
+      with:
+        name: PataLog-Windows-MSI
+        path: release-artifacts/
+
+    - name: Download Windows EXE
+      uses: actions/download-artifact@v3
+      with:
+        name: PataLog-Windows-EXE
+        path: release-artifacts/
+      continue-on-error: true
+
+    - name: Download Linux DEB
+      uses: actions/download-artifact@v3
+      with:
+        name: PataLog-Linux-DEB
+        path: release-artifacts/
+      continue-on-error: true
+
+    - name: Display artifacts
+      run: |
+        echo "=== Release Artifacts ==="
+        find release-artifacts/ -type f
+        ls -lh release-artifacts/
+
+    - name: Create Release
+      uses: softprops/action-gh-release@v1
+      with:
+        files: release-artifacts/**/*
+        draft: false
+        prerelease: false
+        generate_release_notes: true
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
