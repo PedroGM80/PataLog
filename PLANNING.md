@@ -64,12 +64,16 @@ Aplicacion de escritorio para veterinarios que transcribe consultas por voz y ge
 
 ---
 
-## Sprint 6 - Pulido [EN PROGRESO]
+## Sprint 6 - Pulido [COMPLETADO]
 | Tarea | Estado | Archivo(s) |
 |-------|--------|------------|
 | Modo oscuro / claro | HECHO | `Theme.kt`, `App.kt`, `SettingsScreen.kt` |
-| Atajos de teclado | Pendiente | |
+| Atajos de teclado | HECHO | `App.kt`, `ConsultationScreen.kt`, `AnimalsScreen.kt`, `OwnersScreen.kt` |
 | Indicador estado Python en barra | HECHO | `BackendStatusIndicator.kt` |
+| Mejoras accesibilidad | HECHO | Tooltips, contentDescription, focus management |
+| Splash screen | HECHO | `SplashScreen.kt`, `Main.kt` |
+| Validacion email/telefono | HECHO | `OwnersScreen.kt` |
+| Limites de caracteres | HECHO | `OwnersScreen.kt`, `AnimalsScreen.kt` |
 
 ---
 
@@ -86,12 +90,28 @@ Aplicacion de escritorio para veterinarios que transcribe consultas por voz y ge
   - Instrucciones si Ollama no esta instalado
 - **Logica de primer inicio**: detecta si necesita onboarding por nombre default + colegiado vacio
 
-#### Sprint 6 Parcial - Pulido
+#### Sprint 6 Completado - Pulido
 - **Modo oscuro/claro** con paleta verde veterinario
   - Esquema de colores personalizado (Theme.kt)
   - Switch en pantalla de Ajustes
   - Persistencia en base de datos
   - Cambio en tiempo real sin reiniciar
+- **Atajos de teclado** completos:
+  - Navegacion global: Ctrl+1-4 (pantallas), Ctrl+, (ajustes)
+  - Consulta: Ctrl+R/F5 (grabar), Ctrl+G (generar), Ctrl+S (guardar), Ctrl+E (PDF), Ctrl+L (limpiar), Esc (cancelar)
+  - Pacientes/Propietarios: Ctrl+N (nuevo), Ctrl+F (buscar), Esc (cerrar dialogos)
+- **Mejoras de accesibilidad**:
+  - Tooltips con atajos de teclado en botones
+  - contentDescription descriptivos en iconos
+  - Focus management para navegacion por teclado
+- **Splash screen** con logo TeckelSoft
+  - Animacion fade-in
+  - Indicador de carga
+  - Ventana sin decoracion
+- **Validaciones QA**:
+  - Validacion formato email y telefono
+  - Limites de caracteres en formularios
+  - Contador de caracteres en campos de texto
 
 ### [0.3.0] - 2025-02-13
 
