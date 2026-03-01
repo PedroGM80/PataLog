@@ -70,23 +70,13 @@ compose.desktop {
                 dirChooser = true
                 perUserInstall = true
                 upgradeUuid = "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
-                iconFile.set(project.file("src/main/resources/icon.ico"))
-            }
-
-            macOS {
-                bundleID = "com.teckelsoft.patalog"
-                iconFile.set(project.file("src/main/resources/icon.icns"))
             }
 
             linux {
                 packageName = "patalog"
                 debMaintainer = "info@teckelsoft.com"
                 menuGroup = "Office"
-                iconFile.set(project.file("src/main/resources/icon.png"))
             }
-
-            // Incluir el backend empaquetado
-            appResourcesRootDir.set(project.layout.projectDirectory.dir("../dist"))
         }
     }
 }
