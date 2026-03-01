@@ -1,9 +1,9 @@
 plugins {
-    kotlin("jvm") version "1.9.23"
-    kotlin("plugin.serialization") version "1.9.23"
-    id("org.jetbrains.compose") version "1.6.1"
-    id("org.jlleitschuh.gradle.ktlint") version "12.1.0"
-    id("io.gitlab.arturbosch.detekt") version "1.24.0"
+    kotlin("jvm") version "2.3.10"
+    kotlin("plugin.serialization") version "2.3.10"
+    id("org.jetbrains.compose") version "1.9.3"
+    id("org.jlleitschuh.gradle.ktlint") version "13.1.0"
+    id("io.gitlab.arturbosch.detekt") version "1.23.8"
     jacoco
 }
 
@@ -23,14 +23,14 @@ dependencies {
     implementation(compose.materialIconsExtended)
     
     // Coroutines
-    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.8.0")
-    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-swing:1.8.0")
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.10.2")
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-swing:1.10.2")
 
     // Serialization
-    implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.6.3")
+    implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.10.0")
 
     // SQLite
-    implementation("org.xerial:sqlite-jdbc:3.45.2.0")
+    implementation("org.xerial:sqlite-jdbc:3.51.2.0")
     
     // Testing
     testImplementation(kotlin("test"))
@@ -101,7 +101,7 @@ kotlin {
 
 // Configuración de Detekt
 detekt {
-    toolVersion = "1.24.0"
+    toolVersion = "1.23.8"
     config = files("${rootDir}/detekt.yml")
     parallel = true
     ignoreFailures = true
