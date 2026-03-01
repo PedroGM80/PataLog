@@ -21,46 +21,68 @@ jobs:
           java-version: '17'
           distribution: 'temurin'
           cache: gradle
+          cache-dependency-path: app/build.gradle.kts
 
       - name: Set up Python 3.13
         uses: actions/setup-python@v5
         with:
           python-version: '3.13'
+          cache: 'pip'
+          cache-dependency-path: backend/requirements.txt
 
       - name: Install Python dependencies
         run: |
-          python -m pip install --upgrade pip
+          python -m pip install --upgrade pip setuptools wheel
           pip install -r backend/requirements.txt
           pip install pyinstaller
+
+      - name: Validate Python setup
+        run: |
+          python --version
+          pip --version
+          pyinstaller --version
 
       - name: Build backend with PyInstaller
         run: |
           cd backend
-          python -m PyInstaller patalog-backend.spec
-          echo "Backend build completed"
-          dir dist/
+          python -m PyInstaller patalog-backend.spec --distpath="../dist/patalog-backend"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          Write-Host "Backend build completed successfully"
+          Get-ChildItem -Path "..\dist" -Recurse
 
-      - name: Prepare backend for frontend
+      - name: Validate backend build
         run: |
-          if (Test-Path "backend/dist/patalog-backend") {
-            mkdir -Force dist/
-            Copy-Item -Recurse "backend/dist/patalog-backend" "dist/"
-            echo "Backend copied to dist/"
+          if (-not (Test-Path "dist/patalog-backend")) {
+            Write-Host "ERROR: Backend build failed - patalog-backend not found"
+            exit 1
           }
+          Write-Host "Backend validation passed"
 
       - name: Build frontend with Gradle
         run: |
           cd app
-          gradle packageMsi --stacktrace
+          gradle clean packageMsi --info
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
-      - name: Locate built installers
+      - name: Validate installer build
         run: |
-          echo "=== Build artifacts ==="
-          Get-ChildItem -Recurse app/build/compose/binaries/main/msi -ErrorAction SilentlyContinue | Select-Object FullName
-          Get-ChildItem -Recurse app/build/compose/binaries/main/exe -ErrorAction SilentlyContinue | Select-Object FullName
+          $msiFiles = @(Get-ChildItem -Path "app/build/compose/binaries/main/msi" -Filter "*.msi" -Recurse -ErrorAction SilentlyContinue)
+          $exeFiles = @(Get-ChildItem -Path "app/build/compose/binaries/main/exe" -Filter "*.exe" -Recurse -ErrorAction SilentlyContinue)
+
+          Write-Host "=== Build Artifacts Found ==="
+          Write-Host "MSI files: $($msiFiles.Count)"
+          Write-Host "EXE files: $($exeFiles.Count)"
+
+          if ($msiFiles.Count -eq 0) {
+            Write-Host "WARNING: No MSI files found"
+          }
+          if ($exeFiles.Count -eq 0) {
+            Write-Host "WARNING: No EXE files found"
+          }
 
       - name: Upload MSI artifact
         uses: actions/upload-artifact@v4
+        if: always()
         with:
           name: PataLog-Windows-MSI
           path: app/build/compose/binaries/main/msi/**/*.msi
@@ -68,10 +90,18 @@ jobs:
 
       - name: Upload EXE artifact
         uses: actions/upload-artifact@v4
+        if: always()
         with:
           name: PataLog-Windows-EXE
           path: app/build/compose/binaries/main/exe/**/*.exe
           if-no-files-found: warn
+
+      - name: Build summary
+        if: always()
+        run: |
+          Write-Host "=== Build Summary ==="
+          Write-Host "Windows build completed"
+          Write-Host "Artifacts will be available in GitHub Actions"
 
   build-linux:
     runs-on: ubuntu-latest
@@ -86,11 +116,14 @@ jobs:
           java-version: '17'
           distribution: 'temurin'
           cache: gradle
+          cache-dependency-path: app/build.gradle.kts
 
       - name: Set up Python 3.13
         uses: actions/setup-python@v5
         with:
           python-version: '3.13'
+          cache: 'pip'
+          cache-dependency-path: backend/requirements.txt
 
       - name: Install system dependencies
         run: |
@@ -99,41 +132,60 @@ jobs:
 
       - name: Install Python dependencies
         run: |
-          python -m pip install --upgrade pip
+          python -m pip install --upgrade pip setuptools wheel
           pip install -r backend/requirements.txt
           pip install pyinstaller
+
+      - name: Validate Python setup
+        run: |
+          python --version
+          pip --version
+          pyinstaller --version
 
       - name: Build backend with PyInstaller
         run: |
           cd backend
-          python -m PyInstaller patalog-backend.spec
-          echo "Backend build completed"
-          ls -la dist/
+          python -m PyInstaller patalog-backend.spec --distpath="../dist/patalog-backend"
+          [ $? -eq 0 ] && echo "Backend build completed successfully" || exit 1
+          ls -lah ../dist/
 
-      - name: Prepare backend for frontend
+      - name: Validate backend build
         run: |
-          mkdir -p dist/
-          if [ -d "backend/dist/patalog-backend" ]; then
-            cp -r backend/dist/patalog-backend dist/
-            echo "Backend copied to dist/"
+          if [ ! -d "dist/patalog-backend" ]; then
+            echo "ERROR: Backend build failed - patalog-backend not found"
+            exit 1
           fi
+          echo "Backend validation passed"
 
       - name: Build frontend with Gradle
         run: |
           cd app
-          gradle packageDeb --stacktrace
+          gradle clean packageDeb --info
+          [ $? -eq 0 ] || exit 1
 
-      - name: Locate built installers
+      - name: Validate DEB build
         run: |
-          echo "=== Build artifacts ==="
-          find app/build/compose/binaries/main -name "*.deb" -type f 2>/dev/null || echo "No DEB files found"
+          DEB_COUNT=$(find app/build/compose/binaries/main -name "*.deb" -type f 2>/dev/null | wc -l)
+          echo "=== Build Artifacts Found ==="
+          echo "DEB files: $DEB_COUNT"
+          if [ $DEB_COUNT -eq 0 ]; then
+            echo "WARNING: No DEB files found"
+          fi
 
       - name: Upload DEB artifact
         uses: actions/upload-artifact@v4
+        if: always()
         with:
           name: PataLog-Linux-DEB
           path: app/build/compose/binaries/main/deb/**/*.deb
           if-no-files-found: warn
+
+      - name: Build summary
+        if: always()
+        run: |
+          echo "=== Build Summary ==="
+          echo "Linux build completed"
+          echo "Artifacts will be available in GitHub Actions"
 
   create-release:
     needs: [build-windows, build-linux]
