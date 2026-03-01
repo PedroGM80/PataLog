@@ -40,14 +40,22 @@ dependencies {
 compose.desktop {
     application {
         mainClass = "com.patalog.MainKt"
-        
+
         nativeDistributions {
-            targetFormats(
-                org.jetbrains.compose.desktop.application.dsl.TargetFormat.Dmg,
-                org.jetbrains.compose.desktop.application.dsl.TargetFormat.Msi,
-                org.jetbrains.compose.desktop.application.dsl.TargetFormat.Exe,
-                org.jetbrains.compose.desktop.application.dsl.TargetFormat.Deb
-            )
+            val os = System.getProperty("os.name").lowercase()
+            val formats = when {
+                os.contains("win") -> listOf(
+                    org.jetbrains.compose.desktop.application.dsl.TargetFormat.Msi,
+                    org.jetbrains.compose.desktop.application.dsl.TargetFormat.Exe
+                )
+                os.contains("mac") -> listOf(
+                    org.jetbrains.compose.desktop.application.dsl.TargetFormat.Dmg
+                )
+                else -> listOf(
+                    org.jetbrains.compose.desktop.application.dsl.TargetFormat.Deb
+                )
+            }
+            targetFormats(*formats.toTypedArray())
             
             packageName = "PataLog"
             packageVersion = "1.0.0"
