@@ -67,17 +67,10 @@ jobs:
       - name: Validate installer build
         run: |
           $msiFiles = @(Get-ChildItem -Path "app/build/compose/binaries/main/msi" -Filter "*.msi" -Recurse -ErrorAction SilentlyContinue)
-          $exeFiles = @(Get-ChildItem -Path "app/build/compose/binaries/main/exe" -Filter "*.exe" -Recurse -ErrorAction SilentlyContinue)
-
           Write-Host "=== Build Artifacts Found ==="
           Write-Host "MSI files: $($msiFiles.Count)"
-          Write-Host "EXE files: $($exeFiles.Count)"
-
           if ($msiFiles.Count -eq 0) {
             Write-Host "WARNING: No MSI files found"
-          }
-          if ($exeFiles.Count -eq 0) {
-            Write-Host "WARNING: No EXE files found"
           }
 
       - name: Upload MSI artifact
@@ -86,14 +79,6 @@ jobs:
         with:
           name: PataLog-Windows-MSI
           path: app/build/compose/binaries/main/msi/**/*.msi
-          if-no-files-found: warn
-
-      - name: Upload EXE artifact
-        uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: PataLog-Windows-EXE
-          path: app/build/compose/binaries/main/exe/**/*.exe
           if-no-files-found: warn
 
       - name: Build summary
@@ -190,7 +175,7 @@ jobs:
   create-release:
     needs: [build-windows, build-linux]
     runs-on: ubuntu-latest
-    if: startsWith(github.ref, 'refs/tags/v')
+    if: github.ref == 'refs/heads/master' || startsWith(github.ref, 'refs/tags/v')
     name: Create Release
 
     steps:
@@ -200,12 +185,6 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: PataLog-Windows-MSI
-          path: release-artifacts/
-
-      - name: Download Windows EXE
-        uses: actions/download-artifact@v4
-        with:
-          name: PataLog-Windows-EXE
           path: release-artifacts/
         continue-on-error: true
 
@@ -219,15 +198,34 @@ jobs:
       - name: Display artifacts
         run: |
           echo "=== Release Artifacts ==="
-          find release-artifacts/ -type f
-          ls -lh release-artifacts/
+          find release-artifacts/ -type f || echo "No artifacts found"
+          ls -lh release-artifacts/ || true
+
+      - name: Get version
+        id: get_version
+        run: |
+          if [[ "${{ github.ref }}" == refs/tags/v* ]]; then
+            echo "version=${{ github.ref_name }}" >> $GITHUB_OUTPUT
+          else
+            echo "version=latest" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Delete existing latest release
+        if: steps.get_version.outputs.version == 'latest'
+        run: |
+          gh release delete latest --yes 2>/dev/null || true
+          git push origin :refs/tags/latest 2>/dev/null || true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Create Release
         uses: softprops/action-gh-release@v1
         with:
+          tag_name: ${{ steps.get_version.outputs.version }}
+          name: PataLog ${{ steps.get_version.outputs.version }}
           files: release-artifacts/**/*
           draft: false
-          prerelease: false
+          prerelease: ${{ steps.get_version.outputs.version == 'latest' }}
           generate_release_notes: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
